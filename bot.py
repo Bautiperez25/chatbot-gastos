@@ -3,7 +3,6 @@ import re
 import sqlite3
 import shutil
 import asyncio
-import contextvars
 from datetime import datetime, timedelta
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -34,15 +33,6 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 DB = "gastos.db"
-
-# Usuario de Telegram que está procesando el update actual.
-# Permite que todas las funciones existentes trabajen con la
-# base de datos correcta sin tener que pasar user_id por toda
-# la aplicación.
-USUARIO_ACTUAL = contextvars.ContextVar(
-    "usuario_actual",
-    default=None
-)
 
 # Confirmación temporal para borrar todos los gastos.
 BORRAR_TODOS_PENDIENTE = set()
@@ -280,65 +270,12 @@ NOMBRES_MESES = [
 # BASE DE DATOS
 # ============================================================
 
-def conectar_master():
-    return sqlite3.connect(DB)
-
-
-def usuario_db_path(user_id):
-    return f"gastos_usuario_{int(user_id)}.db"
-
-
 def conectar():
-    user_id = USUARIO_ACTUAL.get()
-
-    if user_id is None:
-        return sqlite3.connect(DB)
-
-    # El primer usuario registrado conserva la base histórica gastos.db.
-    conexion_master = sqlite3.connect(DB)
-    cursor_master = conexion_master.cursor()
-    cursor_master.execute("""
-        CREATE TABLE IF NOT EXISTS configuracion (
-            clave TEXT PRIMARY KEY,
-            valor TEXT NOT NULL
-        )
-    """)
-    cursor_master.execute(
-        "SELECT valor FROM configuracion WHERE clave = 'owner_user_id'"
-    )
-    fila = cursor_master.fetchone()
-    conexion_master.close()
-
-    if fila and str(fila[0]) == str(user_id):
-        return sqlite3.connect(DB)
-
-    return sqlite3.connect(usuario_db_path(user_id))
-
-
-def asegurar_base_usuario():
-    conexion = conectar()
-    cursor = conexion.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS gastos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            monto REAL NOT NULL,
-            categoria TEXT NOT NULL,
-            medio_pago TEXT NOT NULL,
-            personas INTEGER NOT NULL DEFAULT 1,
-            fecha TEXT NOT NULL,
-            recordatorio_credito INTEGER NOT NULL DEFAULT 1
-        )
-    """)
-
-    conexion.commit()
-    conexion.close()
+    return sqlite3.connect(DB)
 
 
 def crear_tablas_extra():
 
-    asegurar_base_usuario()
-
     conexion = conectar()
     cursor = conexion.cursor()
 
@@ -349,10 +286,12 @@ def crear_tablas_extra():
         )
     """)
 
+    # Migración segura para bases existentes.
     cursor.execute("PRAGMA table_info(gastos)")
     columnas = [fila[1] for fila in cursor.fetchall()]
 
     if "recordatorio_credito" not in columnas:
+
         cursor.execute("""
             ALTER TABLE gastos
             ADD COLUMN recordatorio_credito INTEGER NOT NULL DEFAULT 1
@@ -360,65 +299,6 @@ def crear_tablas_extra():
 
     conexion.commit()
     conexion.close()
-
-
-def registrar_usuario_en_master(user_id, chat_id, nombre):
-
-    conexion = conectar_master()
-    cursor = conexion.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            user_id INTEGER PRIMARY KEY,
-            chat_id INTEGER NOT NULL,
-            nombre TEXT,
-            fecha_alta TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        INSERT INTO usuarios (user_id, chat_id, nombre, fecha_alta)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(user_id)
-        DO UPDATE SET
-            chat_id = excluded.chat_id,
-            nombre = excluded.nombre
-    """, (
-        int(user_id),
-        int(chat_id),
-        nombre,
-        ahora().strftime("%Y-%m-%d %H:%M:%S")
-    ))
-
-    conexion.commit()
-    conexion.close()
-
-
-def usuarios_registrados():
-
-    conexion = conectar_master()
-    cursor = conexion.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            user_id INTEGER PRIMARY KEY,
-            chat_id INTEGER NOT NULL,
-            nombre TEXT,
-            fecha_alta TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute("""
-        SELECT user_id, chat_id, nombre
-        FROM usuarios
-    """)
-
-    usuarios = cursor.fetchall()
-
-    conexion.commit()
-    conexion.close()
-
-    return usuarios
 
 
 # ============================================================
@@ -1990,6 +1870,45 @@ async def editar_gasto(
 
 
 # ============================================================
+# RESPUESTAS DE GRÁFICOS
+# ============================================================
+
+async def enviar_texto_grafico(
+    update: Update,
+    texto: str
+):
+
+    if update.message:
+        await update.message.reply_text(texto)
+        return
+
+    if update.callback_query and update.callback_query.message:
+        await update.callback_query.message.reply_text(texto)
+        return
+
+
+async def enviar_foto_grafico(
+    update: Update,
+    foto,
+    caption: str
+):
+
+    if update.message:
+        await update.message.reply_photo(
+            photo=foto,
+            caption=caption
+        )
+        return
+
+    if update.callback_query and update.callback_query.message:
+        await update.callback_query.message.reply_photo(
+            photo=foto,
+            caption=caption
+        )
+        return
+
+
+# ============================================================
 # GRÁFICO POR CATEGORÍA
 # ============================================================
 
@@ -2017,7 +1936,8 @@ async def grafico_categorias(
 
     if not valores:
 
-        await update.message.reply_text(
+        await enviar_texto_grafico(
+            update,
             "Todavía no hay gastos para graficar."
         )
 
@@ -2086,9 +2006,10 @@ async def grafico_categorias(
 
     buffer.seek(0)
 
-    await update.message.reply_photo(
-        photo=buffer,
-        caption="📊 Gastos por categoría"
+    await enviar_foto_grafico(
+        update,
+        buffer,
+        "📊 Gastos por categoría"
     )
 
 
@@ -2131,7 +2052,8 @@ async def grafico_diario(
 
     if not datos:
 
-        await update.message.reply_text(
+        await enviar_texto_grafico(
+            update,
             "Todavía no hay gastos para graficar."
         )
 
@@ -2205,9 +2127,10 @@ async def grafico_diario(
 
     buffer.seek(0)
 
-    await update.message.reply_photo(
-        photo=buffer,
-        caption="📈 Gasto diario"
+    await enviar_foto_grafico(
+        update,
+        buffer,
+        "📈 Gasto diario"
     )
 
 
@@ -2302,9 +2225,10 @@ async def grafico_mensual(
 
     buffer.seek(0)
 
-    await update.message.reply_photo(
-        photo=buffer,
-        caption="📊 Evolución mensual"
+    await enviar_foto_grafico(
+        update,
+        buffer,
+        "📊 Evolución mensual"
     )
 
 
@@ -2481,127 +2405,144 @@ async def enviar_recordatorio_credito(
     application
 ):
 
-    usuarios = usuarios_registrados()
+    chat_id = obtener_config(
+        "chat_id"
+    )
 
-    if not usuarios:
+    if not chat_id:
         return
 
-    for user_id, chat_id, nombre in usuarios:
+    try:
+        chat_id = int(chat_id)
 
-        token = USUARIO_ACTUAL.set(int(user_id))
+    except ValueError:
+        return
+
+    gastos = await gastos_credito_pendientes()
+
+    if not gastos:
+        return
+
+    fecha_actual = ahora()
+
+    # Corte de las 22:00.
+    corte_hoy = fecha_actual.replace(
+        hour=22,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    ids_validos = []
+
+    agrupados = {}
+
+    for gasto_id, monto, fecha_texto in gastos:
 
         try:
-            gastos = await gastos_credito_pendientes()
 
-            if not gastos:
-                continue
-
-            fecha_actual = ahora()
-
-            corte_hoy = fecha_actual.replace(
-                hour=22,
-                minute=0,
-                second=0,
-                microsecond=0
+            fecha_gasto = datetime.strptime(
+                fecha_texto,
+                "%Y-%m-%d %H:%M:%S"
             )
 
-            ids_validos = []
-            agrupados = {}
-
-            for gasto_id, monto, fecha_texto in gastos:
-
-                try:
-                    fecha_gasto = datetime.strptime(
-                        fecha_texto,
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-
-                    if ZONA_HORARIA:
-                        fecha_gasto = fecha_gasto.replace(
-                            tzinfo=ZONA_HORARIA
-                        )
-
-                except Exception:
-                    continue
-
-                if (
-                    fecha_gasto.date() == fecha_actual.date()
-                    and fecha_gasto > corte_hoy
-                ):
-                    continue
-
-                ids_validos.append(gasto_id)
-
-                fecha_clave = fecha_gasto.date()
-
-                agrupados[fecha_clave] = (
-                    agrupados.get(fecha_clave, 0)
-                    + float(monto)
+            if ZONA_HORARIA:
+                fecha_gasto = fecha_gasto.replace(
+                    tzinfo=ZONA_HORARIA
                 )
 
-            if not ids_validos:
-                continue
+        except Exception:
+            continue
 
-            total = sum(agrupados.values())
+        # Si es un gasto de hoy posterior a las 22,
+        # NO entra en el recordatorio de hoy.
+        if (
+            fecha_gasto.date() == fecha_actual.date()
+            and fecha_gasto > corte_hoy
+        ):
+            continue
 
-            if (
-                len(agrupados) == 1
-                and fecha_actual.date() in agrupados
+        ids_validos.append(
+            gasto_id
+        )
+
+        fecha_clave = fecha_gasto.date()
+
+        agrupados[fecha_clave] = (
+            agrupados.get(fecha_clave, 0)
+            + float(monto)
+        )
+
+    if not ids_validos:
+        return
+
+    total = sum(
+        agrupados.values()
+    )
+
+    # Si todo corresponde a hoy.
+    if (
+        len(agrupados) == 1
+        and fecha_actual.date() in agrupados
+    ):
+
+        mensaje = (
+            "💳 Acordate:\n\n"
+            f"Hoy gastaste {dinero(total)} "
+            "con crédito.\n"
+            "Separá esa plata de tu cuenta."
+        )
+
+    else:
+
+        mensaje = (
+            "💳 Acordate de separar de tu cuenta:\n\n"
+            f"Total: {dinero(total)}\n\n"
+        )
+
+        for fecha_gasto, monto in sorted(
+            agrupados.items()
+        ):
+
+            if fecha_gasto == fecha_actual.date():
+
+                etiqueta = "Hoy"
+
+            elif fecha_gasto == (
+                fecha_actual.date()
+                - timedelta(days=1)
             ):
 
-                mensaje = (
-                    "💳 Acordate:\n\n"
-                    f"Hoy gastaste {dinero(total)} "
-                    "con crédito.\n"
-                    "Separá esa plata de tu cuenta."
-                )
+                etiqueta = "Ayer"
 
             else:
 
-                mensaje = (
-                    "💳 Acordate de separar de tu cuenta:\n\n"
-                    f"Total: {dinero(total)}\n\n"
+                etiqueta = fecha_gasto.strftime(
+                    "%d/%m"
                 )
 
-                for fecha_gasto, monto in sorted(
-                    agrupados.items()
-                ):
+            mensaje += (
+                f"• {etiqueta}: "
+                f"{dinero(monto)}\n"
+            )
 
-                    if fecha_gasto == fecha_actual.date():
-                        etiqueta = "Hoy"
+    try:
 
-                    elif fecha_gasto == (
-                        fecha_actual.date()
-                        - timedelta(days=1)
-                    ):
-                        etiqueta = "Ayer"
+        await application.bot.send_message(
+            chat_id=chat_id,
+            text=mensaje
+        )
 
-                    else:
-                        etiqueta = fecha_gasto.strftime("%d/%m")
+        marcar_credito_recordado(
+            ids_validos
+        )
 
-                    mensaje += (
-                        f"• {etiqueta}: "
-                        f"{dinero(monto)}\n"
-                    )
+    except Exception as error:
 
-            try:
-                await application.bot.send_message(
-                    chat_id=int(chat_id),
-                    text=mensaje
-                )
-
-                marcar_credito_recordado(
-                    ids_validos
-                )
-
-            except Exception as error:
-                print(
-                    f"Error enviando recordatorio de crédito "
-                    f"a {user_id}: {error}"
-                )
-
-        finally:
-            USUARIO_ACTUAL.reset(token)
+        print(
+            f"Error enviando recordatorio de crédito: "
+            f"{error}"
+        )
 
 
 async def loop_recordatorio_credito(
@@ -2688,48 +2629,11 @@ async def registrar_chat(
     if update.effective_chat.type != "private":
         return
 
-    user = update.effective_user
-    user_id = user.id
-    chat_id = update.effective_chat.id
-
-    # La primera persona que usa esta instalación conserva los
-    # gastos históricos que ya estaban en gastos.db.
-    conexion = conectar_master()
-    cursor = conexion.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS configuracion (
-            clave TEXT PRIMARY KEY,
-            valor TEXT NOT NULL
-        )
-    """)
-
-    cursor.execute(
-        "SELECT valor FROM configuracion WHERE clave = 'owner_user_id'"
-    )
-    owner = cursor.fetchone()
-
-    if owner is None:
-        cursor.execute("""
-            INSERT INTO configuracion (clave, valor)
-            VALUES ('owner_user_id', ?)
-        """, (str(user_id),))
-
-    conexion.commit()
-    conexion.close()
-
-    USUARIO_ACTUAL.set(user_id)
-
-    # Para usuarios nuevos se crea una base independiente.
-    crear_tablas_extra()
-
-    nombre = user.first_name or user.username or f"Usuario {user_id}"
-    registrar_usuario_en_master(user_id, chat_id, nombre)
-
     guardar_config(
         "chat_id",
-        chat_id
+        update.effective_chat.id
     )
+
 
 
 # ============================================================
@@ -2901,7 +2805,6 @@ async def manejar_botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data in {"grafico_categorias", "grafico_diario", "grafico_mensual"}:
-        await query.delete_message()
         if data == "grafico_categorias":
             await grafico_categorias(update, context)
         elif data == "grafico_diario":
