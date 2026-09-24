@@ -781,7 +781,7 @@ async def configurar_presupuesto(
         monto
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"💰 {mes_nombre(mes).capitalize()}\n\n"
         f"Presupuesto establecido: {dinero(monto)}"
     )
@@ -805,7 +805,7 @@ async def consultar_presupuesto(
 
     if presupuesto is None:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             f"💰 No tenés un presupuesto establecido para "
             f"{mes_nombre(mes).capitalize()}."
         )
@@ -837,7 +837,7 @@ async def consultar_presupuesto(
             f"Te pasaste: {dinero(abs(restante))}"
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -993,7 +993,7 @@ async def registrar_gasto(
             f"ID: #{gasto_id}"
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1023,7 +1023,7 @@ async def consulta_hoy(
         fin
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"💰 Hoy gastaste {dinero(total)}."
     )
 
@@ -1053,7 +1053,7 @@ async def consulta_ayer(
         hoy
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"💰 Ayer gastaste {dinero(total)}."
     )
 
@@ -1116,7 +1116,7 @@ async def consulta_semana(
         fin
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"📅 Esta semana gastaste {dinero(total)}."
     )
 
@@ -1142,7 +1142,7 @@ async def consulta_mes(
         fin
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"💰 En {mes_nombre(fecha.month).capitalize()} "
         f"llevás gastados {dinero(total)}."
     )
@@ -1176,7 +1176,7 @@ async def consulta_mes_especifico(
         fin
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"💰 En {mes_nombre(mes).capitalize()} "
         f"gastaste {dinero(total)}."
     )
@@ -1241,7 +1241,7 @@ async def consulta_categoria(
         fecha.month
     )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"{categoria}\n\n"
         f"Este mes: {dinero(total)}"
     )
@@ -1278,7 +1278,7 @@ async def historial(
 
     if not gastos:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "No hay gastos registrados."
         )
 
@@ -1303,7 +1303,7 @@ async def historial(
             f"{nombre_medio_pago(medio)}\n"
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1347,7 +1347,7 @@ async def ultimos_gastos_categoria(
 
     if not gastos:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             f"No encontré gastos de {categoria}."
         )
 
@@ -1367,7 +1367,7 @@ async def ultimos_gastos_categoria(
             f"{fecha}\n"
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1409,7 +1409,7 @@ async def mayor_gasto(
 
     if not gasto:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "No tenés gastos este mes."
         )
 
@@ -1417,7 +1417,7 @@ async def mayor_gasto(
 
     gasto_id, monto, categoria, medio, fecha = gasto
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         "💸 Mayor gasto del mes\n\n"
         f"{dinero(monto)}\n"
         f"{categoria}\n"
@@ -1451,7 +1451,7 @@ async def gastos_grandes(
 
     if not gastos:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "No hay gastos registrados."
         )
 
@@ -1468,7 +1468,7 @@ async def gastos_grandes(
             f"{categoria}\n"
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1520,7 +1520,7 @@ async def comparar_categorias(
 
         mensaje += "Todavía no hay gastos."
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1587,7 +1587,7 @@ async def comparar_meses(
 
         mensaje += "Gastaste lo mismo."
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -1650,7 +1650,7 @@ async def consulta_medio_pago(
 
     conexion.close()
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"{nombre_medio_pago(medio)}\n\n"
         f"Este mes: {dinero(total)}"
     )
@@ -1681,7 +1681,7 @@ async def borrar_ultimo(
 
         conexion.close()
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "No hay gastos para borrar."
         )
 
@@ -1697,7 +1697,7 @@ async def borrar_ultimo(
     conexion.commit()
     conexion.close()
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"🗑️ Borrado #{gasto_id}\n"
         f"{dinero(monto)} — {categoria}"
     )
@@ -1721,7 +1721,7 @@ async def borrar_por_id(
 
     if not numeros:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "Decime el número del gasto.\n"
             "Ejemplo: borrar gasto 15"
         )
@@ -1747,7 +1747,7 @@ async def borrar_por_id(
 
         conexion.close()
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             f"No existe el gasto #{gasto_id}."
         )
 
@@ -1763,7 +1763,7 @@ async def borrar_por_id(
     conexion.commit()
     conexion.close()
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"🗑️ Borrado #{gasto_id}\n"
         f"{dinero(monto)} — {categoria}"
     )
@@ -1787,7 +1787,7 @@ async def editar_gasto(
 
     if not ids:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "Ejemplo:\n"
             "Corregí el gasto #15, eran 25000"
         )
@@ -1821,7 +1821,7 @@ async def editar_gasto(
 
     if len(montos) < 2:
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "Necesito el nuevo monto.\n"
             "Ejemplo: Corregí el gasto #15, eran 25000"
         )
@@ -1845,7 +1845,7 @@ async def editar_gasto(
 
         conexion.close()
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             f"No encontré el gasto #{gasto_id}."
         )
 
@@ -1863,49 +1863,29 @@ async def editar_gasto(
     conexion.commit()
     conexion.close()
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         f"✏️ Gasto #{gasto_id} corregido.\n"
         f"Nuevo monto: {dinero(nuevo_monto)}"
     )
 
 
 # ============================================================
-# RESPUESTAS DE GRÁFICOS
+# RESPUESTA DE TEXTO COMPATIBLE CON BOTONES
 # ============================================================
 
-async def enviar_texto_grafico(
-    update: Update,
-    texto: str
-):
+async def responder_texto(update: Update, texto: str, **kwargs):
 
     if update.message:
-        await update.message.reply_text(texto)
-        return
+        return await update.message.reply_text(
+            texto,
+            **kwargs
+        )
 
     if update.callback_query and update.callback_query.message:
-        await update.callback_query.message.reply_text(texto)
-        return
-
-
-async def enviar_foto_grafico(
-    update: Update,
-    foto,
-    caption: str
-):
-
-    if update.message:
-        await update.message.reply_photo(
-            photo=foto,
-            caption=caption
+        return await update.callback_query.message.reply_text(
+            texto,
+            **kwargs
         )
-        return
-
-    if update.callback_query and update.callback_query.message:
-        await update.callback_query.message.reply_photo(
-            photo=foto,
-            caption=caption
-        )
-        return
 
 
 # ============================================================
@@ -1936,8 +1916,7 @@ async def grafico_categorias(
 
     if not valores:
 
-        await enviar_texto_grafico(
-            update,
+        await responder_texto(update, 
             "Todavía no hay gastos para graficar."
         )
 
@@ -2006,10 +1985,9 @@ async def grafico_categorias(
 
     buffer.seek(0)
 
-    await enviar_foto_grafico(
-        update,
-        buffer,
-        "📊 Gastos por categoría"
+    await update.message.reply_photo(
+        photo=buffer,
+        caption="📊 Gastos por categoría"
     )
 
 
@@ -2052,8 +2030,7 @@ async def grafico_diario(
 
     if not datos:
 
-        await enviar_texto_grafico(
-            update,
+        await responder_texto(update, 
             "Todavía no hay gastos para graficar."
         )
 
@@ -2127,10 +2104,9 @@ async def grafico_diario(
 
     buffer.seek(0)
 
-    await enviar_foto_grafico(
-        update,
-        buffer,
-        "📈 Gasto diario"
+    await update.message.reply_photo(
+        photo=buffer,
+        caption="📈 Gasto diario"
     )
 
 
@@ -2225,10 +2201,9 @@ async def grafico_mensual(
 
     buffer.seek(0)
 
-    await enviar_foto_grafico(
-        update,
-        buffer,
-        "📊 Evolución mensual"
+    await update.message.reply_photo(
+        photo=buffer,
+        caption="📊 Evolución mensual"
     )
 
 
@@ -2299,7 +2274,7 @@ async def dashboard(
                 f"{categoria}: {dinero(valor)}\n"
             )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         mensaje
     )
 
@@ -2315,7 +2290,7 @@ async def backup(
 
     if not os.path.exists(DB):
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             "No existe la base de datos."
         )
 
@@ -2696,7 +2671,7 @@ async def menu_principal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         "🏠 Menú principal\n\n"
         "También podés escribir cualquier pedido normalmente.",
         reply_markup=teclado_principal()
@@ -2749,22 +2724,22 @@ async def manejar_botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "accion_dashboard":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando resumen...")
         await dashboard(update, context)
         return
 
     if data == "accion_hoy":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando...")
         await consulta_hoy(update, context)
         return
 
     if data == "menu_hoy":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando...")
         await consulta_hoy(update, context)
         return
 
     if data == "menu_mes":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando...")
         await consulta_mes(update, context)
         return
 
@@ -2783,12 +2758,12 @@ async def manejar_botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "accion_presupuesto":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando...")
         await consultar_presupuesto(update, context)
         return
 
     if data == "menu_historial":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Cargando historial...")
         await historial(update, context)
         return
 
@@ -2805,6 +2780,7 @@ async def manejar_botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data in {"grafico_categorias", "grafico_diario", "grafico_mensual"}:
+        await query.edit_message_text("⏳ Generando gráfico...")
         if data == "grafico_categorias":
             await grafico_categorias(update, context)
         elif data == "grafico_diario":
@@ -2837,7 +2813,7 @@ async def manejar_botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "borrar_ultimo":
-        await query.delete_message()
+        await query.edit_message_text("⏳ Borrando...")
         await borrar_ultimo(update, context)
         return
 
@@ -2906,7 +2882,7 @@ async def borrar_todos_por_texto(update: Update, context: ContextTypes.DEFAULT_T
 
     if chat_id not in BORRAR_TODOS_PENDIENTE:
         BORRAR_TODOS_PENDIENTE.add(chat_id)
-        await update.message.reply_text(
+        await responder_texto(update, 
             "⚠️ Esto va a borrar TODOS los gastos.\n\n"
             "Si estás seguro, escribí **SI BORRAR TODO**.",
             parse_mode="Markdown"
@@ -2924,13 +2900,13 @@ async def borrar_todos_por_texto(update: Update, context: ContextTypes.DEFAULT_T
         conexion.commit()
         conexion.close()
 
-        await update.message.reply_text(
+        await responder_texto(update, 
             f"🗑️ Listo. Borré {cantidad} gastos.\n\n"
             "El presupuesto no se modificó."
         )
     else:
         BORRAR_TODOS_PENDIENTE.discard(chat_id)
-        await update.message.reply_text("❌ Cancelado. No borré nada.")
+        await responder_texto(update, "❌ Cancelado. No borré nada.")
 
 
 # ============================================================
@@ -2949,7 +2925,7 @@ async def start(
             update.effective_chat.id
         )
 
-    await update.message.reply_text(
+    await responder_texto(update, 
         "👋 Soy tu bot de gastos.\n\n"
         "Podés escribirme naturalmente:\n\n"
         "💸 Gastos\n"
