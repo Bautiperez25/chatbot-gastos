@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application,
+    Application,å
     CommandHandler,
     MessageHandler,
     TypeHandler,
@@ -502,19 +502,12 @@ def detectar_medio_pago(texto):
     if re.search(r"\bcr[eé]dito\b", texto):
         return "credito"
 
-    if re.search(r"\bdebito\b|\bdébito\b", texto):
-        return "debito"
-
     if re.search(r"\befectivo\b|\bcash\b", texto):
         return "efectivo"
 
-    if re.search(r"\btransferencia\b|\btransferi\b", texto):
-        return "transferencia"
-
-    if "mercado pago" in texto or "mercadopago" in texto:
-        return "mercado_pago"
-
-    return "otro"
+    # Débito incluye débito, transferencia y Mercado Pago.
+    # Si no se aclara el medio de pago, también se asume débito.
+    return "debito"
 
 
 def nombre_medio_pago(medio):
@@ -523,9 +516,6 @@ def nombre_medio_pago(medio):
         "credito": "💳 Crédito",
         "debito": "💳 Débito",
         "efectivo": "💵 Efectivo",
-        "transferencia": "🏦 Transferencia",
-        "mercado_pago": "🟡 Mercado Pago",
-        "otro": "💳 Otros",
     }
 
     return nombres.get(medio, medio)
